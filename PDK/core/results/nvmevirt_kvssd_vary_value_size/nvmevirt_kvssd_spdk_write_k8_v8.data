@@ -1,0 +1,120 @@
+make -C /lib/modules/5.19.0/build M=/home/chenzhong/Projects/nvmevirt modules
+make[1]: Entering directory '/home/chenzhong/Projects/linux-5.19'
+  LD [M]  /home/chenzhong/Projects/nvmevirt/nvmev.ko
+make[1]: Leaving directory '/home/chenzhong/Projects/linux-5.19'
+crw------- 1 root root 239,   0 Aug 31 17:56 /dev/nvme0
+brw-rw---- 1 root disk 259,   0 Aug 31 17:56 /dev/nvme0n1
+crw------- 1 root root 239,   1 Aug 31 18:00 /dev/nvme1
+brw------- 1 root root 259,   1 Aug 31 18:00 /dev/nvme1n1
+crw------- 1 root root  10, 123 Aug 31 17:56 /dev/nvme-fabrics
+config all nvme bdf
+../../../../bus/pci/drivers/nvme
+bdf: 0000:02:00.0
+old deriver: nvme
+new deriver: uio_pci_generic
+0000:02:00.0 (144d a808): nvme -> uio_pci_generic
+../../../bus/pci/drivers/nvme
+bdf: 0001:10:00.0
+old deriver: nvme
+new deriver: uio_pci_generic
+0001:10:00.0 (0c51 0110): nvme -> uio_pci_generic
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/chenzhong/Projects/KVSSD/PDK/core/build
+Consolidate compiler generated dependencies of target kvapi
+[ 22%] Built target kvapi
+Consolidate compiler generated dependencies of target sample_code_async
+Consolidate compiler generated dependencies of target sample_code_sync
+Consolidate compiler generated dependencies of target sample_application
+[ 48%] Built target sample_code_async
+[ 77%] Built target sample_code_sync
+[ 77%] Building CXX object CMakeFiles/sample_application.dir/sample_code/sample_application.cpp.o
+[ 81%] Linking CXX executable sample_application
+[100%] Built target sample_application
+EAL: Probing VFIO support...
+EAL: VFIO support initialized
+init udd
+EAL: PCI device 0001:10:00.0 on NUMA socket 0
+EAL:   probe driver: c51:110 spdk_nvme
+Open handle 93850679513088 with path 0001:10:00.0
+Keyspace information get name: keyspace_test
+open:1, count:0, capacity:0, free_size:0.
+Before: Total size is 33284947968 bytes, used is 10000
+Total size: 33.28 GB
+Max value size: 2097152
+Max key size: 255
+Optimal value size: 4096
+key trace size: 6000000
+generate 6000000 keys
+generate duration 0.006984 s.
+------------------------------------------------
+Key type:              String
+Val type:              String
+Keys:                  8 bytes each
+Values:                8 bytes each
+Entries:               6000000
+Trace size:            6000000
+Read:                  6000000 
+Write:                 0 
+Thread:                1 
+Report interval:       1 s
+Stats interval:        200000000 records
+benchmarks:            load
+------------------------------------------------
+[Epoch] 0,112700,112700,1.0003,1.0003
+[Epoch] 0,112500,225200,1.0005,2.0008
+[Epoch] 0,112700,337900,0.9999,3.0008
+[Epoch] 0,111800,449700,0.9994,4.0002
+[Epoch] 0,110100,559800,1.0000,5.0002
+[Epoch] 0,107200,667000,1.0001,6.0003
+[Epoch] 0,105400,772400,0.9999,7.0002
+[Epoch] 0,103800,876200,1.0003,8.0005
+[Epoch] 0,103300,979500,1.0003,9.0009
+[Epoch] 0,110800,1090300,0.9994,10.0003
+[Epoch] 0,112700,1203000,0.9998,11.0002
+[Epoch] 0,112800,1315800,1.0006,12.0008
+[Epoch] 0,112100,1427900,0.9998,13.0006
+[Epoch] 0,110000,1537900,1.0003,14.0008
+[Epoch] 0,107800,1645700,1.0001,15.0009
+[Epoch] 0,105900,1751600,0.9992,16.0001
+[Epoch] 0,104400,1856000,1.0004,17.0005
+[Epoch] 0,103300,1959300,0.9998,18.0003
+[Epoch] 0,109000,2068300,1.0000,19.0003
+[Epoch] 0,112700,2181000,1.0000,20.0003
+[Epoch] 0,112700,2293700,1.0000,21.0002
+[Epoch] 0,112700,2406400,1.0005,22.0007
+[Epoch] 0,110700,2517100,0.9993,23.0000
+[Epoch] 0,108600,2625700,1.0002,24.0002
+[Epoch] 0,106600,2732300,1.0007,25.0009
+[Epoch] 0,104500,2836800,0.9998,26.0007
+[Epoch] 0,103300,2940100,0.9996,27.0003
+[Epoch] 0,107300,3047400,1.0003,28.0007
+[Epoch] 0,112700,3160100,0.9999,29.0005
+[Epoch] 0,112700,3272800,0.9997,30.0002
+[Epoch] 0,112700,3385500,1.0005,31.0007
+[Epoch] 0,110900,3496400,0.9993,32.0000
+[Epoch] 0,108500,3604900,1.0005,33.0005
+[Epoch] 0,106500,3711400,1.0001,34.0006
+[Epoch] 0,104900,3816300,0.9998,35.0004
+[Epoch] 0,103300,3919600,1.0001,36.0005
+[Epoch] 0,105300,4024900,1.0001,37.0006
+[Epoch] 0,112700,4137600,0.9997,38.0003
+[Epoch] 0,112700,4250300,1.0000,39.0003
+[Epoch] 0,112600,4362900,0.9998,40.0001
+[Epoch] 0,111200,4474100,1.0002,41.0003
+[Epoch] 0,109000,4583100,1.0006,42.0009
+[Epoch] 0,106700,4689800,0.9998,43.0006
+[Epoch] 0,105100,4794900,1.0000,44.0007
+[Epoch] 0,103400,4898300,1.0000,45.0007
+[Epoch] 0,103400,5001700,0.9998,46.0004
+[Epoch] 0,112700,5114400,1.0001,47.0005
+[Epoch] 0,112700,5227100,0.9997,48.0002
+[Epoch] 0,112700,5339800,0.9999,49.0001
+[Epoch] 0,112000,5451800,1.0002,50.0003
+[Epoch] 0,109500,5561300,1.0006,51.0008
+[Epoch] 0,107000,5668300,0.9995,52.0004
+[Epoch] 0,105300,5773600,1.0001,53.0004
+[Epoch] 0,103600,5877200,0.9998,54.0002
+[Epoch] 0,103300,5980500,1.0005,55.0008
+load         :       9.198 micros/op 0.103680 Mops/s;
+After: Total used is 10000

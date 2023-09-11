@@ -189,7 +189,16 @@ elseif(WITH_SPDK)
   add_executable(sample_code_sync ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/test_sync.cpp ${SOURCES_API} ${HEADERS_API})
   target_link_libraries(sample_code_sync ${KVAPI_LIBS})
   add_dependencies(sample_code_sync kvapi)
+
+  find_library(TbbLib tbb)
+  list(APPEND THIRDPARTY_LIBS ${TbbLib})
+
+  list(APPEND THIRDPARTY_LIBS gflags)
   
+  add_executable(sample_application ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/sample_application.cpp ${SOURCES_API} ${HEADERS_API})
+  target_link_libraries(sample_application ${KVAPI_LIBS} ${THIRDPARTY_LIBS})
+  add_dependencies(sample_application kvapi)
+
 else()
   message( FATAL_ERROR "Please specify device driver type for compilation." )
 

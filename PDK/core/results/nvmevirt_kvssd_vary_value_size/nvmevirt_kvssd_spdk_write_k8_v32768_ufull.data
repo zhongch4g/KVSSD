@@ -1,0 +1,43 @@
+EAL: Probing VFIO support...
+EAL: VFIO support initialized
+init udd
+EAL: PCI device 0001:10:00.0 on NUMA socket 0
+EAL:   probe driver: c51:110 spdk_nvme
+Open handle 94568821252128 with path 0001:10:00.0
+Keyspace information get name: keyspace_test
+open:1, count:0, capacity:0, free_size:0.
+Before: Total size is 33284947968 bytes, used is 10000
+Total size: 33.28 GB
+Max value size: 2097152
+Max key size: 255
+Optimal value size: 4096
+key trace size: 100000000
+generate 100000000 keys
+generate duration 0.080020 s.
+------------------------------------------------
+Key type:              String
+Val type:              String
+Keys:                  8 bytes each
+Values:                32768 bytes each
+Entries:               100000000
+Trace size:            100000000
+Read:                  100000000 
+Write:                 0 
+Thread:                1 
+Report interval:       1 s
+Stats interval:        200000000 records
+benchmarks:            load
+------------------------------------------------
+[Epoch] 0,79900,79900,1.0002,1.0002
+[Epoch] 0,77900,157800,0.9998,2.0000
+[Epoch] 0,76400,234200,1.0005,3.0005
+[Epoch] 0,74800,309000,0.9997,4.0002
+[Epoch] 0,74800,383800,1.0008,5.0010
+[Epoch] 0,74700,458500,0.9995,6.0006
+[Epoch] 0,74700,533200,0.9997,7.0003
+[Epoch] 0,74800,608000,1.0008,8.0011
+[Epoch] 0,74700,682700,0.9995,9.0007
+[Epoch] 0,74700,757400,0.9996,10.0003
+[Epoch] 0,74500,831900,1.0007,11.0010
+[Epoch] 0,73900,905800,1.0001,12.0011
+[Epoch] 0,73000,978800,0.9999,13.0010

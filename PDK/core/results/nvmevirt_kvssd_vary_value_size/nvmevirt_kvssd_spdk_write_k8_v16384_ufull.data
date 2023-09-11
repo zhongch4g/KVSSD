@@ -1,0 +1,53 @@
+EAL: Probing VFIO support...
+EAL: VFIO support initialized
+init udd
+EAL: PCI device 0001:10:00.0 on NUMA socket 0
+EAL:   probe driver: c51:110 spdk_nvme
+Open handle 94119840251936 with path 0001:10:00.0
+Keyspace information get name: keyspace_test
+open:1, count:0, capacity:0, free_size:0.
+Before: Total size is 33284947968 bytes, used is 10000
+Total size: 33.28 GB
+Max value size: 2097152
+Max key size: 255
+Optimal value size: 4096
+key trace size: 100000000
+generate 100000000 keys
+generate duration 0.079525 s.
+------------------------------------------------
+Key type:              String
+Val type:              String
+Keys:                  8 bytes each
+Values:                16384 bytes each
+Entries:               100000000
+Trace size:            100000000
+Read:                  100000000 
+Write:                 0 
+Thread:                1 
+Report interval:       1 s
+Stats interval:        200000000 records
+benchmarks:            load
+------------------------------------------------
+[Epoch] 0,93700,93700,1.0010,1.0010
+[Epoch] 0,92400,186100,0.9995,2.0005
+[Epoch] 0,90800,276900,0.9996,3.0001
+[Epoch] 0,89700,366600,1.0007,4.0008
+[Epoch] 0,88300,454900,0.9997,5.0005
+[Epoch] 0,87300,542200,0.9996,6.0000
+[Epoch] 0,86300,628500,1.0010,7.0010
+[Epoch] 0,84600,713100,0.9993,8.0003
+[Epoch] 0,84500,797600,1.0006,9.0010
+[Epoch] 0,84300,881900,0.9992,10.0002
+[Epoch] 0,83400,965300,1.0002,11.0004
+[Epoch] 0,89300,1054600,1.0004,12.0007
+[Epoch] 0,93200,1147800,0.9996,13.0003
+[Epoch] 0,92100,1239900,1.0005,14.0008
+[Epoch] 0,90100,1330000,0.9992,15.0000
+[Epoch] 0,88800,1418800,1.0007,16.0007
+[Epoch] 0,87600,1506400,0.9994,17.0002
+[Epoch] 0,87100,1593500,1.0008,18.0010
+[Epoch] 0,84800,1678300,0.9995,19.0005
+[Epoch] 0,84500,1762800,0.9995,20.0000
+[Epoch] 0,84400,1847200,1.0000,21.0001
+[Epoch] 0,84300,1931500,1.0002,22.0002
+[Epoch] 0,84800,2016300,0.9998,23.0001
