@@ -41,15 +41,16 @@ dataframe4 = parse_log("nvmevirt_kvssd_spdk_write_k8_v512.data")
 dataframe5 = parse_log("nvmevirt_kvssd_spdk_write_k8_v1024.data")
 dataframe6 = parse_log("nvmevirt_kvssd_spdk_write_k8_v2048.data")
 dataframe7 = parse_log("nvmevirt_kvssd_spdk_write_k8_v4096.data")
+dataframe8 = parse_log("nvmevirt_kvssd_spdk_write_k8_v4096_thrd4.data")
 
-dataframe1 = parse_log("nvmevirt_kvssd_spdk_write_k8_v8_ufull.data")
-dataframe2 = parse_log("nvmevirt_kvssd_spdk_write_k8_v32_ufull.data")
-dataframe3 = parse_log("nvmevirt_kvssd_spdk_write_k8_v128_ufull.data")
-dataframe4 = parse_log("nvmevirt_kvssd_spdk_write_k8_v512_ufull.data")
-dataframe5 = parse_log("nvmevirt_kvssd_spdk_write_k8_v1024_ufull.data")
-dataframe6 = parse_log("nvmevirt_kvssd_spdk_write_k8_v2048_ufull.data")
-dataframe7 = parse_log("nvmevirt_kvssd_spdk_write_k8_v4096_ufull.data")
-dataframe8 = parse_log("nvmevirt_kvssd_spdk_write_k8_v8192_ufull.data")
+# dataframe1 = parse_log("nvmevirt_kvssd_spdk_write_k8_v8_ufull.data")
+# dataframe2 = parse_log("nvmevirt_kvssd_spdk_write_k8_v32_ufull.data")
+# dataframe3 = parse_log("nvmevirt_kvssd_spdk_write_k8_v128_ufull.data")
+# dataframe4 = parse_log("nvmevirt_kvssd_spdk_write_k8_v512_ufull.data")
+# dataframe5 = parse_log("nvmevirt_kvssd_spdk_write_k8_v1024_ufull.data")
+# dataframe6 = parse_log("nvmevirt_kvssd_spdk_write_k8_v2048_ufull.data")
+# dataframe7 = parse_log("nvmevirt_kvssd_spdk_write_k8_v4096_ufull.data")
+# dataframe8 = parse_log("nvmevirt_kvssd_spdk_write_k8_v8192_ufull.data")
 dataframe9 = parse_log("nvmevirt_kvssd_spdk_write_k8_v16384_ufull.data")
 dataframe10 = parse_log("nvmevirt_kvssd_spdk_write_k8_v32768_ufull.data")
 
@@ -94,17 +95,19 @@ dataframe10 = dataframe10[::1]
 x_unit = 1024*1024*1024 # GB
 y_unit = 1024*1024 # MB
 
-ax.plot(dataframe10['total_done']*32776/x_unit, dataframe10['last_epoch_done']*32776/y_unit, color=colors[9], marker=markers[2], dashes=dashes[2], label = label[9], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe9['total_done']*16392/x_unit, dataframe9['last_epoch_done']*16392/y_unit, color=colors[8], marker=markers[2], dashes=dashes[2], label = label[8], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe8['total_done']*8200/x_unit, dataframe8['last_epoch_done']*8200/y_unit, color=colors[7], marker=markers[2], dashes=dashes[2], label = label[7], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe7['total_done']*4104/x_unit, dataframe7['last_epoch_done']*4104/y_unit, color=colors[6], marker=markers[2], dashes=dashes[2], label = label[6], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe6['total_done']*2056/x_unit, dataframe6['last_epoch_done']*2056/y_unit, color=colors[5], marker=markers[2], dashes=dashes[2], label = label[5], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe5['total_done']*1032/x_unit, dataframe5['last_epoch_done']*1032/y_unit, color=colors[4], marker=markers[2], dashes=dashes[2], label = label[4], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe4['total_done']*520/x_unit, dataframe4['last_epoch_done']*520/y_unit, color=colors[3], marker=markers[2], dashes=dashes[2], label = label[3], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe3['total_done']*136/x_unit, dataframe3['last_epoch_done']*136/y_unit, color=colors[2], marker=markers[2], dashes=dashes[2], label = label[2], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe2['total_done']*40/x_unit, dataframe2['last_epoch_done']*40/y_unit, color=colors[1], marker=markers[2], dashes=dashes[2], label = label[1], alpha=0.8, fillstyle='none', markersize=8)
-ax.plot(dataframe1['total_done']*16/x_unit, dataframe1['last_epoch_done']*16/y_unit, color=colors[0], marker=markers[2], dashes=dashes[2], label = label[0], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe10['total_done']*32776/x_unit, dataframe10['last_epoch_done']*32776/y_unit, color=colors[9], marker=markers[2], dashes=dashes[2], label = label[9], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe9['total_done']*16392/x_unit, dataframe9['last_epoch_done']*16392/y_unit, color=colors[8], marker=markers[2], dashes=dashes[2], label = label[8], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe8['total_done']*8200/x_unit, dataframe8['last_epoch_done']*8200/y_unit, color=colors[7], marker=markers[2], dashes=dashes[2], label = label[7], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe7['total_done']*4104/x_unit, dataframe7['last_epoch_done']*4104/y_unit, color=colors[6], marker=markers[2], dashes=dashes[2], label = label[6], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe6['total_done']*2056/x_unit, dataframe6['last_epoch_done']*2056/y_unit, color=colors[5], marker=markers[2], dashes=dashes[2], label = label[5], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe5['total_done']*1032/x_unit, dataframe5['last_epoch_done']*1032/y_unit, color=colors[4], marker=markers[2], dashes=dashes[2], label = label[4], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe4['total_done']*520/x_unit, dataframe4['last_epoch_done']*520/y_unit, color=colors[3], marker=markers[2], dashes=dashes[2], label = label[3], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe3['total_done']*136/x_unit, dataframe3['last_epoch_done']*136/y_unit, color=colors[2], marker=markers[2], dashes=dashes[2], label = label[2], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe2['total_done']*40/x_unit, dataframe2['last_epoch_done']*40/y_unit, color=colors[1], marker=markers[2], dashes=dashes[2], label = label[1], alpha=0.8, fillstyle='none', markersize=8)
+# ax.plot(dataframe1['total_done']*16/x_unit, dataframe1['last_epoch_done']*16/y_unit, color=colors[0], marker=markers[2], dashes=dashes[2], label = label[0], alpha=0.8, fillstyle='none', markersize=8)
 
+ax.plot(dataframe8['total_done']*4104/x_unit, dataframe8['last_epoch_done']*4104/y_unit, color=colors[7], marker=markers[2], dashes=dashes[2], label = 'v4KB_4thrd', alpha=0.8, fillstyle='none', markersize=8)
+ax.plot(dataframe7['total_done']*4104/x_unit, dataframe7['last_epoch_done']*4104/y_unit, color=colors[6], marker=markers[2], dashes=dashes[2], label = 'v4KB_1thrd', alpha=0.8, fillstyle='none', markersize=8)
 
 
 
@@ -113,7 +116,8 @@ ax.plot(dataframe1['total_done']*16/x_unit, dataframe1['last_epoch_done']*16/y_u
 
 
 handles, labels = ax.get_legend_handles_labels()
-order = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+# order = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+order = [1, 0]
 ax.legend([handles[idx] for idx in order],[labels[idx] for idx in order], loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=5, frameon=False)
 
 ax.grid(which='major', linestyle='--', zorder=0)
@@ -125,5 +129,5 @@ ax.set_xlabel('# of KVs * KV Size (GB)', fontsize=12)
 ax.set_ylabel('Throughput (MB/s)', fontsize=12)
 # ax.set_ylim(0, 150)
 
-fig.savefig("./nvmevirt_kvssd_vary_value_size_ufull_xGB_yMB.png", bbox_inches='tight', pad_inches=0.1)
+fig.savefig("./nvmevirt_kvssd_threads.png", bbox_inches='tight', pad_inches=0.1)
 

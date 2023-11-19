@@ -195,9 +195,21 @@ elseif(WITH_SPDK)
 
   list(APPEND THIRDPARTY_LIBS gflags)
   
-  add_executable(sample_application ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/sample_application.cpp ${SOURCES_API} ${HEADERS_API})
-  target_link_libraries(sample_application ${KVAPI_LIBS} ${THIRDPARTY_LIBS})
-  add_dependencies(sample_application kvapi)
+  add_executable(sample_sync_application ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/sample_sync_application.cpp ${SOURCES_API} ${HEADERS_API})
+  target_link_libraries(sample_sync_application ${KVAPI_LIBS} ${THIRDPARTY_LIBS})
+  add_dependencies(sample_sync_application kvapi)
+
+  add_executable(sample_async_application ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/sample_async_application.cpp ${SOURCES_API} ${HEADERS_API})
+  target_link_libraries(sample_async_application ${KVAPI_LIBS} ${THIRDPARTY_LIBS})
+  add_dependencies(sample_async_application kvapi)
+
+  add_executable(rocksdb_application ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/rocksdb_application.cpp ${SOURCES_API} ${HEADERS_API})
+  target_link_libraries(rocksdb_application ${KVAPI_LIBS} ${THIRDPARTY_LIBS} rocksdb tbb)
+  add_dependencies(rocksdb_application kvapi)
+
+  add_executable(mempool_hash_application ${CMAKE_CURRENT_SOURCE_DIR}/sample_code/mempool_hash_application.cpp ${SOURCES_API} ${HEADERS_API})
+  target_link_libraries(mempool_hash_application ${KVAPI_LIBS} ${THIRDPARTY_LIBS} tbb)
+  add_dependencies(mempool_hash_application kvapi)
 
 else()
   message( FATAL_ERROR "Please specify device driver type for compilation." )

@@ -38,6 +38,7 @@ DEFINE_uint64 (read, 0, "Number of read operations");
 DEFINE_uint64 (write, 0, "Number of read operations");
 DEFINE_string (device_path, "0001:10:00.0", "KV SSD device path, eg.0001:10:00.0, ");
 DEFINE_string (keyspace_name, "keyspace_test", "keyspace name");
+DEFINE_uint32 (batch_length, 8, "Number of KVs in batch");
 
 DEFINE_bool (hist, false, "");
 
@@ -446,6 +447,19 @@ static std::string TrimSpace (std::string s) {
 
 }  // namespace
 class Benchmark {
+    struct batch_kvs {
+        int nkvs;
+        int key_length;
+        int value_length;
+        // uint8_t key[129];
+        uint8_t key[1025]; 
+        // uint8_t value[129]; // v16
+        uint8_t value[1025]; // v16*200
+        // uint8_t value[257]; // v32
+        // uint8_t value[513]; // v64
+        // uint8_t value[1025]; // v128
+        // uint8_t value[2050]; // v256
+    };
 public:
     uint64_t num_;
     size_t reads_;
@@ -457,6 +471,7 @@ public:
     kvs_key_space_handle ks_hd;
     uint16_t klen;
     uint32_t vlen;
+    uint32_t batch_length;
     Benchmark ()
         : num_ (FLAGS_num),
           trace_size_ (FLAGS_num),
@@ -464,7 +479,8 @@ public:
           writes_ (FLAGS_write),
           key_trace_ (nullptr),
           klen (FLAGS_key_size),
-          vlen (FLAGS_value_size) {
+          vlen (FLAGS_value_size),
+          batch_length (FLAGS_batch_length) {
             snprintf(ks_name, MAX_KEYSPACE_NAME_LEN, "%s", FLAGS_keyspace_name.c_str());
             if(_env_init(FLAGS_device_path.c_str(), &dev, ks_name, &ks_hd) != 1) {
                 ERROR ("Initialize env error .. ");
@@ -503,7 +519,11 @@ public:
                 benchmarks = sep + 1;
             }
             if (name == "load") {
+                key_trace_->Randomize ();
                 method = &Benchmark::DoWrite;
+            } else if (name == "load_batch") {
+                // key_trace_->Randomize ();
+                method = &Benchmark::DoWriteBatch;
             } else if (name == "loadverify") {
                 method = &Benchmark::DoWriteRead;
             } else if (name == "loadlat") {
@@ -519,7 +539,7 @@ public:
                 key_trace_->Randomize ();
                 method = &Benchmark::DoRead;
             } else if (name == "readall") {
-                key_trace_->Randomize ();
+                // key_trace_->Randomize ();
                 method = &Benchmark::DoReadAll;
             } else if (name == "readnon") {
                 key_trace_->Randomize ();
@@ -600,18 +620,38 @@ public:
             ERROR ("DoReadAll lack key_trace_ initialization.");
             return;
         }
+
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+
+        sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+
         size_t interval = num_ / FLAGS_thread;
         size_t start_offset = thread->tid * interval;
         auto key_iterator = key_trace_->iterate_between (start_offset, start_offset + interval);
 
+        char *key_ = (char *)kvs_malloc(klen, 4096);
+        char *value_ = (char *)kvs_malloc(vlen, 4096);
+        
+        int ret;
         size_t not_find = 0;
-        Duration duration (FLAGS_readtime, interval);
         thread->stats.Start ();
-        while (!duration.Done (batch) && key_iterator.Valid ()) {
+        while (key_iterator.Valid ()) {
             uint64_t j = 0;
             for (; j < batch && key_iterator.Valid (); j++) {
-                auto res = 0;
-                if (unlikely (!res)) {
+                size_t key = key_iterator.Next();
+                memset(value_, 0, vlen);
+                sprintf(key_, "%0*d", klen - 1, key);
+                kvs_option_retrieve option;
+                option.kvs_retrieve_delete = false;
+
+                kvs_key kvskey = {key_, klen};
+                kvs_value kvsvalue = {value_, vlen, 0, 0};
+                ret = kvs_retrieve_kvp(ks_hd, &kvskey, &option, &kvsvalue);
+
+                if (ret != KVS_SUCCESS)
+                {
                     not_find++;
                 }
             }
@@ -720,6 +760,12 @@ public:
             ERROR ("DoWrite lack key_trace_ initialization.");
             return;
         }
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+
+        sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+
         size_t interval = num_ / FLAGS_thread;
         size_t start_offset = thread->tid * interval;
         auto key_iterator = key_trace_->iterate_between (start_offset, start_offset + interval);
@@ -743,6 +789,90 @@ public:
                 if(ret != KVS_SUCCESS ) {
                     not_inserted++;
                 }
+            }
+            thread->stats.FinishedBatchOp (j);
+        }
+        if(key_) kvs_free(key_);
+        if(value_) kvs_free(value_);
+
+        char buf[100];
+        snprintf (buf, sizeof (buf), "(num: %lu, not inserted: %lu)", interval, not_inserted);
+        if (not_inserted)
+            printf ("thread %2d num: %lu, not inserted: %lu\n", thread->tid, interval, not_inserted);
+        INFO ("DoWrite thread: %2d. Total write num: %lu, not inserted: %lu)", thread->tid, interval,
+              not_inserted);
+        thread->stats.AddMessage (buf);
+        return;
+    }
+
+    void DoWriteBatch (ThreadState* thread) {
+        INFO ("DoWriteBatch");
+        uint64_t batch = FLAGS_batch;
+        if (key_trace_ == nullptr) {
+            ERROR ("DoWrite lack key_trace_ initialization.");
+            return;
+        }
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+
+        sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+
+        size_t interval = num_ / FLAGS_thread;
+        size_t start_offset = thread->tid * interval;
+        auto key_iterator = key_trace_->iterate_between (start_offset, start_offset + interval);
+
+        int batch_stt_size = sizeof(batch_kvs);
+        printf("Batch value size %d batch length %u\n", batch_stt_size, batch_length);
+        batch_kvs *b_kvs = (batch_kvs *)malloc(batch_stt_size);
+        b_kvs->key_length = FLAGS_key_size;
+        b_kvs->value_length = FLAGS_value_size;
+        b_kvs->nkvs = 0;
+        uint32_t cur_batch_length = 0;
+
+        char *fake_key_ = (char *)kvs_malloc(klen, 4096);
+        char *fake_value_ = (char *)kvs_malloc(batch_stt_size, 4096);
+        char *key_ = (char *)kvs_malloc(klen, 4096);
+        char *value_ = (char*)kvs_malloc(vlen, 4096);
+
+        size_t zero_key = 0;
+        sprintf(fake_key_, "%0*d", klen - 1, zero_key);
+
+        thread->stats.Start ();
+        size_t not_inserted = 0;
+        while (key_iterator.Valid ()) {
+            uint64_t j = 0;
+            for (; j < batch && key_iterator.Valid (); j++) {
+                size_t key = key_iterator.Next ();
+                sprintf(key_, "%0*d", klen - 1, key);
+                if (cur_batch_length < batch_length) {
+                    memcpy(b_kvs->key + cur_batch_length * klen, key_, klen); 
+                    memcpy(b_kvs->value + cur_batch_length * vlen, value_, vlen); 
+                    b_kvs->nkvs += 1;
+                    cur_batch_length += 1;
+                    continue;
+                }
+
+                kvs_key  kvskey = {fake_key_, klen};
+                memcpy(fake_value_, (char*)b_kvs, batch_stt_size);
+                kvs_value kvsvalue = {fake_value_, batch_stt_size, 0, 0};
+
+                // struct batch_kvs* a = (struct batch_kvs*)fake_value_;
+                // for (int kk = 0; kk < a->nkvs; kk++) {
+                //     printf("deref key %.*s\n", a->key_length, a->key + kk * a->key_length);
+                // }
+
+                kvs_option_store option;
+                option.st_type = KVS_STORE_POST;
+                option.assoc = NULL;
+
+                kvs_result ret = kvs_store_kvp(ks_hd, &kvskey, &kvsvalue, &option);
+                if(ret != KVS_SUCCESS ) {
+                    not_inserted++;
+                }
+                // refresh
+                cur_batch_length = 0;
+                b_kvs->nkvs = 0;
             }
             thread->stats.FinishedBatchOp (j);
         }
@@ -1084,21 +1214,6 @@ private:
             }
         }
 
-        // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
-        // only CPU i as set.
-        cpu_set_t cpuset;
-        cpu_set_t get_cpu;
-        CPU_ZERO(&cpuset);
-        CPU_SET(thread->tid, &cpuset);
-        if (sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) == -1) {
-            printf("warning: could not set CPU affinity, continuing...\n");
-        }
-
-        CPU_ZERO(&get_cpu);
-        if (sched_getaffinity(0, sizeof(get_cpu), &get_cpu) == -1) {
-            printf("warning: could not get thread affinity, continuing...\n");
-        }
-
         thread->stats.Start ();
         (arg->bm->*(arg->method)) (thread);
         thread->stats.Stop ();
@@ -1190,8 +1305,8 @@ private:
         INFO ("Key type:              %s\n", "String");
         fprintf (stdout, "Val type:              %s\n", "String");
         INFO ("Val type:              %s\n", "String");
-        fprintf (stdout, "Keys:                  %lu bytes each\n", 8);
-        INFO ("Keys:                  %lu bytes each\n", 8);
+        fprintf (stdout, "Keys:                  %lu bytes each\n", FLAGS_key_size);
+        INFO ("Keys:                  %lu bytes each\n", FLAGS_key_size);
         fprintf (stdout, "Values:                %lu bytes each\n", FLAGS_value_size);
         INFO ("Values:                %lu bytes each\n", (int)FLAGS_value_size);
         fprintf (stdout, "Entries:               %lu\n", (uint64_t)num_);
@@ -1210,6 +1325,12 @@ private:
         INFO ("Stats interval:        %lu records\n", (uint64_t)FLAGS_stats_interval);
         fprintf (stdout, "benchmarks:            %s\n", FLAGS_benchmarks.c_str ());
         INFO ("benchmarks:            %s\n", FLAGS_benchmarks.c_str ());
+        fprintf (stdout, "------------------------------------------------\n");
+        INFO ("------------------------------------------------\n");
+        INFO ("Write mode             %s \n", "SYNC");
+        fprintf (stdout, "Keyspace name:         %s \n", FLAGS_keyspace_name.c_str());
+        INFO ("Device path(bdf):      %s \n", FLAGS_device_path.c_str());
+        fprintf (stdout, "Device path(bdf):      %s \n", FLAGS_device_path.c_str());
         fprintf (stdout, "------------------------------------------------\n");
         INFO ("------------------------------------------------\n");
     }

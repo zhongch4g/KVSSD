@@ -17,7 +17,7 @@
 
 #define KEY_LEN ((15))
 
-static constexpr uint64_t kRandNumMax = (1LU << 60);
+static constexpr uint64_t kRandNumMax = (1LU << 32);
 static constexpr uint64_t kRandNumMaxMask = kRandNumMax - 1;
 
 static uint64_t u64Rand (const uint64_t& min, const uint64_t& max) {
@@ -35,10 +35,10 @@ public:
         printf ("generate %lu keys\n", count);
         // util::TraceExponential trace (123, 1, 4 * count);
         auto starttime = std::chrono::system_clock::now ();
-        tbb::parallel_for (tbb::blocked_range<uint64_t> (0, count),
+        tbb::parallel_for (tbb::blocked_range<uint64_t> (1, count),
                            [&] (const tbb::blocked_range<uint64_t>& range) {
                                for (uint64_t i = range.begin (); i != range.end (); i++) {
-                                   //    uint64_t num = u64Rand (1LU, kRandNumMax);
+                                    //   uint64_t num = u64Rand (1LU, kRandNumMax);
                                    keys_[i] = i;
                                }
                            });
@@ -55,7 +55,7 @@ public:
     ~RandomKeyTrace () {}
 
     void Randomize (void) {
-        // printf ("randomize %lu keys\n", keys_.size ());
+        printf ("randomize %lu keys\n", keys_.size ());
         auto starttime = std::chrono::system_clock::now ();
         tbb::parallel_for (tbb::blocked_range<uint64_t> (0, keys_.size ()),
                            [&] (const tbb::blocked_range<uint64_t>& range) {
@@ -65,7 +65,7 @@ public:
                            });
         auto duration = std::chrono::duration_cast<std::chrono::microseconds> (
             std::chrono::system_clock::now () - starttime);
-        // printf ("randomize duration %f s.\n", duration.count () / 1000000.0);
+        printf ("randomize duration %f s.\n", duration.count () / 1000000.0);
     }
 
     class RangeIterator {
