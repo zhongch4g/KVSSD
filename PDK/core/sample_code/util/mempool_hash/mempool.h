@@ -3,22 +3,10 @@
 #include <kvs_api.h>
 #include "../logger.h"
 
-#define BUFFER_SIZE (64ull * 1024 * 1024) // 64MB
-#define PAGE_SIZE (4096ull) // 4KB
+#define BUFFER_SIZE (1ull * 1024 * 1024) // 64MB
+#define PAGE_SIZE (4096) // 4KB
 #define SMALL_LENGTH 1024
 #define LARGE_LENGTH 4096
-
-static inline unsigned int kv_mempool_hash_function(unsigned char *key, const int length)
-{
-	unsigned char *p = key;
-	unsigned int h = 2166136261;
-	int i;
-
-	for (i = 0; i < length; i++)
-		h = (h * 16777619) ^ p[i];
-
-	return h;
-}
 
 struct kv_mempool_mapping_entry {
 	char key[18]; // Currently supporting keys smaller than 18 bytes
@@ -45,14 +33,14 @@ struct lru {
 };
 
 struct kv_mempool_page_frame {
-	struct mempool_page
+	struct __attribute__((aligned(512))) mempool_page
 	{
 		uint8_t data[PAGE_SIZE];
 	} page; // The persist part
 	bool is_dirty;
 	int df_id;
-  uint64_t mem_offset;
-  int cur_local_offset;
+    uint64_t mem_offset;
+    int cur_local_offset;
 };
 
 struct memory_pool {
@@ -77,6 +65,8 @@ static inline unsigned int kv_mempool_hash_function(char *key, const int length)
 
 	for (i = 0; i < length; i++)
 		h = (h * 16777619) ^ p[i];
+
+    // unsigned int h = strtoul(key, NULL, 10);
 
 	return h;
 }
@@ -144,7 +134,7 @@ static struct kv_mempool_mapping_entry get_kv_mempool_mapping_entry(struct kv_me
 	// printk("Hashing took %llu\n", t1-t0);
 
 	while (kv_mempool_ftl->kv_mapping_table[slot].mem_offset != -1) {
-		DEBUG("Comparing %s | %.*s\n", cmd.kv_store.key, cmd_key_length(cmd),
+		DEBUG("Comparing %.*s | %.*s\n", key->length, key->key, key->length,
 			    kv_mempool_ftl->kv_mapping_table[slot].key);
 		count++;
 
@@ -179,11 +169,11 @@ static struct kv_mempool_mapping_entry get_kv_mempool_mapping_entry(struct kv_me
 	}
 
 	if (!found) {
-		DEBUG("No mapping found for key %s\n", cmd.kv_store.key);
+		DEBUG("No mapping found for key %.*s\n", key->length, key->key);
     }
 	else {
-		DEBUG("Returning mapping %lu length %lu for key %s\n", mapping.mem_offset,
-			    mapping.length, cmd.kv_store.key);
+		DEBUG("Returning mapping %lu length %lu for key %.*s\n", mapping.mem_offset,
+			    mapping.length, key->length, key->key);
     }
 
 	return mapping;
@@ -195,8 +185,21 @@ public:
     int32_t ssd;
     struct kv_mempool_ftl *mempool_ftl;
     Memhash(const char* ssd_path) {
-        int flags = O_RDWR | O_DIRECT | O_SYNC;
+        int flags = O_RDWR | O_DIRECT;
         ssd = open(ssd_path, flags, 0666);
+
+        const uint64_t gib_size = 1024ull * 1024ull * 1024ull;
+        auto dummy_data = (uint8_t*)aligned_alloc (512, gib_size);
+        for (uint64_t i = 0; i < 20; i++) {
+            const int ret = pwrite (ssd, dummy_data, gib_size, gib_size * i);
+            // posix_check (ret == gib_size);
+        }
+        free (dummy_data);
+        fsync (ssd);
+        int offset = lseek(ssd, 0, SEEK_SET);
+        INFO ("Initial fd %d, offset %d", ssd, offset);
+
+
         mempool_ftl = (struct kv_mempool_ftl*)malloc(sizeof(struct kv_mempool_ftl));
         mempool_ftl->kv_mapping_table = (struct kv_mempool_mapping_entry*)malloc(KV_MAPPING_TABLE_SIZE);
         if (mempool_ftl->kv_mapping_table == NULL)
@@ -205,14 +208,15 @@ public:
             memset(mempool_ftl->kv_mapping_table, 0x0, KV_MAPPING_TABLE_SIZE);
 
         // Allocate space for memory pool
-        mempool_ftl->mempool = (struct memory_pool*)malloc(sizeof(struct memory_pool));
+        mempool_ftl->mempool = (struct memory_pool*)aligned_alloc (512, sizeof(struct memory_pool));
         mempool_ftl->mempool->write_buffer_id = -1;
         if (!mempool_ftl->mempool) {
             perror ("Failed to allocate mempool.\n");
         }
 
-        int nr_buffer_slots = (int) BUFFER_SIZE / PAGE_SIZE;
-        for (int i = 0; i < nr_buffer_slots; i++) {
+        uint64_t nr_buffer_slots = BUFFER_SIZE / PAGE_SIZE;
+        INFO("# of buffer slots %llu\n", nr_buffer_slots);
+        for (uint64_t i = 0; i < nr_buffer_slots; i++) {
             mempool_ftl->mempool->data[i].is_dirty = false;
             mempool_ftl->mempool->data[i].df_id = i;
             mempool_ftl->mempool->data[i].mem_offset = -1;
@@ -224,7 +228,7 @@ public:
         // Allocate space for LRU in mempool
         mempool_ftl->mempool->mempool_lru = (struct lru*)malloc(sizeof(struct lru));
         mempool_ftl->mempool->mempool_lru->lru_queue = (struct lru_node*)malloc(sizeof(struct lru_node) * nr_buffer_slots);
-        for (int i = 0; i < nr_buffer_slots; i++) {
+        for (uint64_t i = 0; i < nr_buffer_slots; i++) {
             mempool_ftl->mempool->mempool_lru->lru_queue[i].next = i + 1;
             mempool_ftl->mempool->mempool_lru->lru_queue[i].prev = i - 1;
         }
@@ -236,7 +240,7 @@ public:
 
         // LRU
         if (0 == LRUCacheCreate(nr_buffer_slots, &mempool_ftl->mempool->LruCache))
-            printf("缓存器创建成功,容量为%d\n", nr_buffer_slots);
+            printf("缓存器创建成功,容量为%llu\n", nr_buffer_slots);
         
         mempool_ftl->hash_slots = KV_MAPPING_TABLE_SIZE / KV_MEMPOOL_MAPPING_ENTRY_SIZE;
         printf ("Hash slots: %ld\n", mempool_ftl->hash_slots);
@@ -260,7 +264,7 @@ public:
         unsigned int prev_slot;
         // assert(val_offset < 0 || val_offset >= storage_size);
 
-        slot = get_hash_slot(mempool_ftl, key->key, key->length);
+        slot = get_hash_slot(mempool_ftl, (char*)key->key, key->length);
 
         prev_slot = -1;
         if (mempool_ftl->kv_mapping_table[slot].mem_offset != -1) {
@@ -282,8 +286,8 @@ public:
             chain_mapping(mempool_ftl, prev_slot, slot);
         }
 
-        DEBUG("New mapping entry key %s offset %lu length %u slot %u\n", cmd.kv_store.key,
-                val_offset, cmd_value_length(cmd), slot);
+        DEBUG("New mapping entry key %.*s offset %lu length %u slot %u\n", key->length, key->key,
+                val_offset, val->length, slot);
 
         return 0;
     }
@@ -351,6 +355,7 @@ public:
         int cmd_val_length;
         uint64_t start_buffer_flush_time;
         uint64_t target_buffer_flush_time;
+        ssize_t ret;
 
         // 1. check if there is a valid write buffer
         nr_buffer_slots = BUFFER_SIZE / PAGE_SIZE;
@@ -386,9 +391,22 @@ public:
             DEBUG("available_length %d cmd_val_length %d\n", available_length, cmd_val_length);
             return &mempool_ftl->mempool->data[wb_id];
         }
+
+        offset = lseek(ssd, 0, SEEK_CUR);
+        // ret = write(ssd, &mempool_ftl->mempool->data[wb_id].page, PAGE_SIZE); // write to ssd
+        ret = pwrite(ssd, &mempool_ftl->mempool->data[wb_id].page, PAGE_SIZE, offset);
+        if (ret == -1) {
+            perror("Bad write");
+            exit(1);
+        }
+        fdatasync(ssd);
+        mempool_ftl->mempool->data[wb_id].is_dirty = false;
+        DEBUG(">> write to file offset %zu ret %d<<\n", offset, ret);
+
+
         // 3. Allocate a new write buffer
         offset = lseek(ssd, PAGE_SIZE, SEEK_CUR);
-        
+        DEBUG(">> Allocate new buffer with file offset %zu <<\n", offset);
         for (i = 0; i < nr_buffer_slots; i++) {
             if (mempool_ftl->mempool->is_empty[i]) {
                 mempool_ftl->mempool->is_empty[i] = false;
@@ -403,9 +421,13 @@ public:
         // 4. Allocate a new write buffer failed! Unload a page from dataframe to reserved memory space (flash)
         // 4.1. find the tail of the LRU and get its buffer frame id and memory offset mapping
         getTailFromList((LRUCacheS*)mempool_ftl->mempool->LruCache, &key, &value);
-        // 4.2. unload the memory
-        DEBUG("Buffer Frame %llu (offset %llu) is full, flush to the disk\n", value, key);
-        int ret = write(ssd, &mempool_ftl->mempool->data[value].page, PAGE_SIZE); // write to ssd
+        // 4.2. unload the memory if the page is dirty
+        // 4.2. unload the memory with delay if the page is dirty
+        if (mempool_ftl->mempool->data[value].is_dirty) {
+            INFO(">>>>>>>>>>>>>>>> Should not happen \n");
+            ret = write(ssd, &mempool_ftl->mempool->data[value].page, PAGE_SIZE); // write to ssd
+            DEBUG("Buffer Frame %llu (offset %llu) is full, flush to the flash with delay\n", value, key);
+        }
 
         // 4.3. reset the buffer frame and allocate a new buffer, update the LRU entry as well
         // memset(&kv_mempool_ftl->mempool->data[value], 0, sizeof(struct kv_mempool_page_frame));
@@ -415,8 +437,9 @@ public:
         memset(mempool_ftl->mempool->data[value].page.data, 0x0, PAGE_SIZE);
         mempool_ftl->mempool->is_empty[value] = true;
 
-        offset = lseek(ssd, PAGE_SIZE, SEEK_CUR);
-
+        offset = lseek(ssd, 0, SEEK_CUR);
+        DEBUG(">> Allocate new buffer with file offset %zu <<\n", offset);
+        
         mempool_ftl->mempool->is_empty[value] = false;
         mempool_ftl->mempool->write_buffer_id = value;
         mempool_ftl->mempool->data[value].mem_offset = offset;
@@ -515,9 +538,9 @@ public:
 
 			is_insert = 1; // is insert
 
-			DEBUG("[kv_store insert] %s to bf %d memoffset %llu in_page_offset %d\n", cmd.kv_store.key, pf->df_id, pf->mem_offset, pf->cur_local_offset);
+			DEBUG("[kv_store insert] %.*s to bf %d memoffset %llu in_page_offset %d\n", key->length, key->key, pf->df_id, pf->mem_offset, pf->cur_local_offset);
 		} else {
-			DEBUG("[kv_store update] %s %lu\n", cmd.kv_store.key, offset);
+			DEBUG("[kv_store update] %.*s %lu\n", key->length, key->key, offset);
 			pf = get_kv_mempool_for_read(value, entry.mem_offset);
 
 			if (length != entry.length) {

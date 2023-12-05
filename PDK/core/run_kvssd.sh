@@ -3,9 +3,9 @@
 # 262144 131072 65536 32768 16384
 # nnsize=(4096 8192 16384 32768 65536)
 # nr_ops=(262144 131072 65536 32768 16384)
-nnsize=(16 32 64 128 256 512)
-nr_ops=(10000000 10000000 10000000 10000000 10000000 10000000)
-for idx in 0;
+nnsize=(16 32 64 128 256 512 4096)
+nr_ops=(10000000 10000000 10000000 10000000 10000000 10000000 1000000)
+for idx in 6;
 do
     cd /home/virtroot/linux-5.19/nvmevirt-dev
     sudo bash build_nvmevirt.sh
@@ -19,15 +19,22 @@ do
     cmake -DWITH_SPDK=ON -DCMAKE_BUILD_TYPE=release ..
     make -j4
 
-    batch_length=64
+    batch_length=16
     ksize=16
     vsize=${nnsize[${idx}]}
     nthreads=1
-    result_path="../results/mempool"
+    result_path="../results/mempool-Nov19-2023"
     prefix="NVMEVIRT_KVSSD_mempool"
-    file_name="k${ksize}_v${vsize}_thrd${nthreads}_sync_batch${batch_length}"
+    # file_name="k${ksize}_v${vsize}_thrd${nthreads}_rnd_sync_slru"
+    file_name="k${ksize}_v${vsize}_thrd${nthreads}_rnd_sync_batch${batch_length}_slru"
     qdepth=64
     num=${nr_ops[${idx}]}
+
+    # clear the cache
+    sync
+    sysctl -q -w vm.drop_caches=3
+    echo 3 >/proc/sys/vm/drop_caches
+    sleep 5
 
 
     # read -p "Sync[1] or Async[2]: " type
@@ -36,7 +43,7 @@ do
     if [ ${type} -eq 1 ]
     then
     echo "sync io"
-    sudo ./sample_sync_application --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load_batch --batch_length=${batch_length} --thread=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
+    sudo ./sample_sync_application --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load --batch_length=${batch_length} --thread=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
     # | tee ${result_path}/${prefix}_${file_name}.data
     else
     echo "async io"

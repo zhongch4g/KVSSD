@@ -451,13 +451,19 @@ class Benchmark {
         int nkvs;
         int key_length;
         int value_length;
-        // uint8_t key[129];
-        uint8_t key[1025]; 
-        // uint8_t value[129]; // v16
-        uint8_t value[1025]; // v16*200
+        // uint8_t key[129]; // 16 * 8
+        uint8_t key[257]; // 16 * 16
+        // uint8_t key[513]; // 16 * 32
+        // uint8_t key[1025]; // 16 * 64
+        // uint8_t key[1025]; 
+        // uint8_t value[129]; // v16 * 8
+        // uint8_t value[257]; // v16 * 16
+        // uint8_t value[513]; // v16 * 32
+        // uint8_t value[1025]; // v16 * 64
+        // uint8_t value[1025]; // v16*200
         // uint8_t value[257]; // v32
         // uint8_t value[513]; // v64
-        // uint8_t value[1025]; // v128
+        uint8_t value[1025]; // v128
         // uint8_t value[2050]; // v256
     };
 public:
@@ -522,7 +528,7 @@ public:
                 key_trace_->Randomize ();
                 method = &Benchmark::DoWrite;
             } else if (name == "load_batch") {
-                // key_trace_->Randomize ();
+                key_trace_->Randomize ();
                 method = &Benchmark::DoWriteBatch;
             } else if (name == "loadverify") {
                 method = &Benchmark::DoWriteRead;
