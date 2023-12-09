@@ -18,7 +18,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "util/mempool_hash/lru_cache_impl.h"
-#include "util/mempool_hash/mempool.h"
+// #include "util/mempool_hash/mempool.h"
+#include "util/mempool_hash/mempoolopt.h"
 #include "util/logger.h"
 #include <linux/fs.h>
 
@@ -46,7 +47,7 @@ DEFINE_string (benchmarks, "load,readall", "");
 DEFINE_string (tracefile, "randomtrace.data", "");
 DEFINE_double (percentile, 90, "percentile of exponential distribution for read");
 DEFINE_string (path, "/mnt/nvmevirt/mempool_hash", "The path of the mempool_hash");
-DEFINE_uint32 (pre_alloc, 20, "pre allocate 20GB ssd file");
+DEFINE_uint32 (pre_alloc, 10, "pre allocate 10GB ssd file");
 
 namespace {
 
@@ -357,7 +358,8 @@ public:
 
     int currRealMem = 0, peakRealMem = 0, currVirtMem = 0, peakVirtMem = 0;
 
-    Memhash *memhash;
+    // Memhash *memhash;
+    Memhashopt *memhashopt;
     int32_t ssd;
     Benchmark ()
         : num_ (FLAGS_num),
@@ -366,7 +368,7 @@ public:
           writes_ (FLAGS_write),
           key_trace_ (nullptr) {
         INFO("Initilize Memhash");
-        memhash = new Memhash(FLAGS_path.c_str());
+        memhashopt = new Memhashopt(FLAGS_path.c_str());
     }
     ~Benchmark () { 
         delete key_trace_; 
@@ -445,6 +447,7 @@ public:
         char *value_ = (char*)malloc(vlen);
 
         thread->stats.Start ();
+        uint64_t inserted = 0;
 
         while (key_iterator.Valid ()) {
             uint64_t j = 0;
@@ -453,14 +456,18 @@ public:
                 sprintf(key_, "%0*zu", (int)klen - 1, key);
                 kvs_key kvskey = {key_, klen};
                 kvs_value kvsvalue = {value_, vlen, 0, 0};
-                int ret = memhash->Put(&kvskey, &kvsvalue);
+                int ret = memhashopt->Put(&kvskey, &kvsvalue);
                 if (!ret) {
                     perror("Bad insertion\n");
                     exit(1);
                 }
+                inserted++;
             }
             thread->stats.FinishedBatchOp (j);
         }
+        char buf[100];
+        snprintf (buf, sizeof (buf), "(num: %lu, inserted: %lu)", interval, inserted);
+        thread->stats.AddMessage (buf);
     }
 
     void DoWrite4K (ThreadState* thread) {
@@ -537,7 +544,7 @@ public:
                 sprintf(key_, "%0*zu", (int)klen - 1, key);
                 kvs_key  kvskey = {key_, klen};
                 kvs_value kvsvalue = {value_, vlen, 0, 0};
-                ret = memhash->Get(&kvskey, &kvsvalue);
+                ret = memhashopt->Get(&kvskey, &kvsvalue);
                 if (ret == 0) {
                     not_find++;
                 }

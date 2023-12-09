@@ -3,7 +3,7 @@
 
 nnsize=(16 32 64 128 256 512)
 nr_ops=(10000000 10000000 10000000 10000000 10000000 10000000)
-for idx in 0 4;
+for idx in 0;
 do
 
 cd /home/virtroot/KVSSD/PDK/core
@@ -17,7 +17,7 @@ make -j4
 ksize=16
 vsize=${nnsize[${idx}]}
 nthreads=1
-result_path="../results/mempool-Nov19-2023"
+result_path="../results/mempool-Dec8-2023"
 prefix="NVMEVIRT_NVM"
 # file_name="direct_k${ksize}_v${vsize}_thrd${nthreads}_rnd_sync"
 file_name="mempool_hash_k${ksize}_v${vsize}_thrd${nthreads}_rnd_slru"
@@ -52,8 +52,7 @@ echo 3 >/proc/sys/vm/drop_caches
 sleep 5
 
 ulimit -Sn 204800
-sudo ./mempool_hash_application --path=/mnt/nvmevirt/mempool_hash --benchmarks=load --worker_threads=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
-| tee ${result_path}/${prefix}_${file_name}.data
+sudo ./mempool_hash_application --path=/mnt/nvmevirt/mempool_hash --benchmarks=load,readall --worker_threads=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 | tee ${result_path}/${prefix}_${file_name}.data
 
 
 # kill stats
