@@ -451,8 +451,8 @@ class Benchmark {
         int nkvs;
         int key_length;
         int value_length;
-        // uint8_t key[129]; // 16 * 8
-        uint8_t key[257]; // 16 * 16
+        uint8_t key[129]; // 16 * 8
+        // uint8_t key[257]; // 16 * 16
         // uint8_t key[513]; // 16 * 32
         // uint8_t key[1025]; // 16 * 64
         // uint8_t key[1025]; 
@@ -462,9 +462,9 @@ class Benchmark {
         // uint8_t value[1025]; // v16 * 64
         // uint8_t value[1025]; // v16*200
         // uint8_t value[257]; // v32
-        // uint8_t value[513]; // v64
-        uint8_t value[1025]; // v128
-        // uint8_t value[2050]; // v256
+        uint8_t value[513]; // v64
+        // uint8_t value[1025]; // v128
+        // uint8_t value[2049]; // v256
     };
 public:
     uint64_t num_;
@@ -829,7 +829,7 @@ public:
         auto key_iterator = key_trace_->iterate_between (start_offset, start_offset + interval);
 
         int batch_stt_size = sizeof(batch_kvs);
-        printf("Batch value size %d batch length %u\n", batch_stt_size, batch_length);
+        INFO("Batch value size %d batch length %u\n", batch_stt_size, batch_length);
         batch_kvs *b_kvs = (batch_kvs *)malloc(batch_stt_size);
         b_kvs->key_length = FLAGS_key_size;
         b_kvs->value_length = FLAGS_value_size;

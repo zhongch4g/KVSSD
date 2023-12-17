@@ -503,7 +503,7 @@ public:
                 kvs_value kvsvalue = {value_, vlen, 0, 0};
 
                 int ret = pwrite(ssd, dummy_data, page_size, counter * page_size);
-                fsync(ssd);
+                fdatasync(ssd);
                 counter += 1;
 
                 if (ret == -1) {

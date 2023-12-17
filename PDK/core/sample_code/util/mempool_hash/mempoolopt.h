@@ -4,7 +4,7 @@
 #include "../logger.h"
 #include "sc_queue.h"
 
-#define BUFFER_SIZE (1ull * 1024 * 1024) // 64MB
+#define BUFFER_SIZE (4ull * 1024 * 1024) // 64MB
 #define PAGE_SIZE (4096) // 4KB
 #define SMALL_LENGTH 1024
 #define LARGE_LENGTH 4096
