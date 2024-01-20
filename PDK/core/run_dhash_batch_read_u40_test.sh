@@ -1,7 +1,7 @@
 # sudo dmesg -C
 nnsize=(16 64 256 1024 4096)
 # nr_ops=(2000000 2000000 2000000 2000000 2000000)
-nr_ops=(10 500000 500000 500000 500000)
+nr_ops=(3000000 500000 500000 500000 1000000)
 for idx in 4;
 do
 cd /home/chenzhong/projects/linux-5.19/nvmevirt-dev
@@ -13,7 +13,7 @@ sudo bash tools/setup.sh
 sudo rm -rf build
 mkdir build
 cd build
-cmake -DWITH_SPDK=ON -DCMAKE_BUILD_TYPE=release ..
+cmake -DWITH_SPDK=ON -DCMAKE_BUILD_TYPE=debug ..
 make -j4
 
 ksize=16
@@ -25,7 +25,7 @@ file_name="k${ksize}_v${vsize}_delay"
 qdepth=64
 # num=$((256 * 1024 * 1024 / vsize))
 num=${nr_ops[${idx}]}
-
+batch_length=64
 # clear the cache
 sync
 sysctl -q -w vm.drop_caches=3
@@ -38,7 +38,7 @@ type=1
 if [ ${type} -eq 1 ]
 then
 echo "sync io"
-sudo ./sample_sync_application --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load,readall --thread=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
+sudo ./sample_sync_application --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load,readall --batch_length=${batch_length} --thread=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
 # | tee ${result_path}/${prefix}_${file_name}.data
 else
 echo "async io"
@@ -46,3 +46,5 @@ sudo ./sample_async_application --device_path=0001:10:00.0 --keyspace_name=keysp
 # | tee ${result_path}/${prefix}_${file_name}_async_qdepth${qdepth}.data
 fi
 done
+
+# (gdb) r --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load,readall --batch_length=64 --thread=1 --num=1000000 --key_size=16 --value_size=16 --report_interval=1 --batch=100

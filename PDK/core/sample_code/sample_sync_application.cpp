@@ -8,13 +8,14 @@
 #include "gflags/gflags.h"
 #include "util/histogram.h"
 #include "util/logger.h"
-#include "util/slice.h"
 #include "util/time.h"
 #include "util/test_util.h"
+#include "util/mempool_hash/common.h"
 
 #include <unistd.h>
 #include <queue>
 #include <kvs_api.h>
+#include <iostream>
 
 using GFLAGS_NAMESPACE::ParseCommandLineFlags;
 using GFLAGS_NAMESPACE::RegisterFlagValidator;
@@ -334,7 +335,7 @@ public:
         return dummy;
     }
 
-    void Report (const Slice& name, bool print_hist = false) {
+    void Report (const std::string& name, bool print_hist = false) {
         // Pretend at least one op was done in case we are running a benchmark
         // that does not call FinishedSingleOp().
         if (done_ < 1) done_ = 1;
@@ -347,10 +348,10 @@ public:
 
         double throughput = (double)done_ / elapsed;
 
-        printf ("%-12s : %11.3f micros/op %lf Mops/s;%s%s\n", name.ToString ().c_str (),
+        printf ("%-12s : %11.3f micros/op %lf Mops/s;%s%s\n", name.c_str (),
                 elapsed * 1e6 / done_, throughput / 1024 / 1024, (extra.empty () ? "" : " "),
                 extra.c_str ());
-        INFO ("%-12s : %11.3f micros/op %lf Mops/s;%s%s\n", name.ToString ().c_str (),
+        INFO ("%-12s : %11.3f micros/op %lf Mops/s;%s%s\n", name.c_str (),
               elapsed * 1e6 / done_, throughput / 1024 / 1024, (extra.empty () ? "" : " "),
               extra.c_str ());
         if (print_hist) {
@@ -447,25 +448,6 @@ static std::string TrimSpace (std::string s) {
 
 }  // namespace
 class Benchmark {
-    struct batch_kvs {
-        int nkvs;
-        int key_length;
-        int value_length;
-        uint8_t key[129]; // 16 * 8
-        // uint8_t key[257]; // 16 * 16
-        // uint8_t key[513]; // 16 * 32
-        // uint8_t key[1025]; // 16 * 64
-        // uint8_t key[1025]; 
-        // uint8_t value[129]; // v16 * 8
-        // uint8_t value[257]; // v16 * 16
-        // uint8_t value[513]; // v16 * 32
-        // uint8_t value[1025]; // v16 * 64
-        // uint8_t value[1025]; // v16*200
-        // uint8_t value[257]; // v32
-        uint8_t value[513]; // v64
-        // uint8_t value[1025]; // v128
-        // uint8_t value[2049]; // v256
-    };
 public:
     uint64_t num_;
     size_t reads_;
@@ -545,8 +527,11 @@ public:
                 key_trace_->Randomize ();
                 method = &Benchmark::DoRead;
             } else if (name == "readall") {
-                // key_trace_->Randomize ();
+                key_trace_->Randomize ();
                 method = &Benchmark::DoReadAll;
+            } else if (name == "read_batch") {
+                key_trace_->Randomize ();
+                method = &Benchmark::DoReadBatch;
             } else if (name == "readnon") {
                 key_trace_->Randomize ();
                 method = &Benchmark::DoReadNon;
@@ -648,18 +633,123 @@ public:
             for (; j < batch && key_iterator.Valid (); j++) {
                 size_t key = key_iterator.Next();
                 memset(value_, 0, vlen);
-                sprintf(key_, "%0*d", klen - 1, key);
+                sprintf(key_, "%0*lu", klen - 1, key);
+                // sprintf(value_, "%0*lu", klen - 1, key + 1);
                 kvs_option_retrieve option;
                 option.kvs_retrieve_delete = false;
 
                 kvs_key kvskey = {key_, klen};
                 kvs_value kvsvalue = {value_, vlen, 0, 0};
                 ret = kvs_retrieve_kvp(ks_hd, &kvskey, &option, &kvsvalue);
+                std::string str1((char*)kvskey.key, kvskey.length-1);
+                std::string str2((char*)kvsvalue.value, kvsvalue.length-1);
+                // std::cout << "[Read] key " << str1 << "; value " << str2 << std::endl;
+                // INFO("[Read] key %s; value %s", str1.c_str(), str2.c_str());
+                // if (memcmp (kvskey.key, kvsvalue.value, kvsvalue.length-1) != 0) {
+                //     not_find++;
+                // }
+                if (ret != KVS_SUCCESS)
+                {
+                    not_find++;
+                }
+            }
+            thread->stats.FinishedBatchOp (j);
+        }
+        if(key_) kvs_free(key_);
+        if(value_) kvs_free(value_);
+        
+        char buf[100];
+        snprintf (buf, sizeof (buf), "(num: %lu, not find: %lu)", interval, not_find);
+        // printf ("thread %2d num: %lu, not find: %lu\n", thread->tid, interval, not_find);
+        INFO ("DoReadAll thread: %2d. Total read num: %lu, not find: %lu)", thread->tid, interval,
+              not_find);
+        thread->stats.AddMessage (buf);
+    }
+
+    void DoReadBatch (ThreadState* thread) {
+        INFO ("DoReadAll");
+        uint64_t batch = FLAGS_batch;
+        if (key_trace_ == nullptr) {
+            ERROR ("DoReadAll lack key_trace_ initialization.");
+            return;
+        }
+
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+
+        sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+
+        size_t interval = num_ / FLAGS_thread;
+        size_t start_offset = thread->tid * interval;
+        auto key_iterator = key_trace_->iterate_between (start_offset, start_offset + interval);
+
+        int batch_stt_size = sizeof(structured_value);
+        INFO("Batch value size %d batch length %u\n", batch_stt_size, batch_length);
+        structured_value *b_kvs = (structured_value *)malloc(batch_stt_size);
+        b_kvs->nkvs = 0;
+        uint32_t cur_batch_length = 0;
+
+        char *fake_key_ = (char *)kvs_malloc(klen, 4096);
+        char *fake_value_ = (char *)kvs_malloc(batch_stt_size, 4096);
+        char *key_ = (char *)kvs_malloc(klen, 4096);
+        char *value_ = (char*)kvs_malloc(vlen, 4096);
+
+        size_t multi_flag = 0;
+        sprintf(fake_key_, "%0*lu", klen - 1, multi_flag);
+        int ret;
+        size_t not_find = 0;
+        thread->stats.Start ();
+        while (key_iterator.Valid ()) {
+            uint64_t j = 0;
+            for (; j < batch && key_iterator.Valid (); j++) {
+                size_t key = key_iterator.Next();
+                sprintf(key_, "%0*lu", klen - 1, key);
+                if ((cur_batch_length + 1) < batch_length) {
+                    memcpy(b_kvs->slots[b_kvs->nkvs].key, key_, klen);
+                    b_kvs->slots[b_kvs->nkvs].key_length = FLAGS_key_size;
+                    b_kvs->slots[b_kvs->nkvs].value_length = FLAGS_value_size;
+                    b_kvs->nkvs += 1;
+                    cur_batch_length += 1;
+                    // INFO ("cur nkvs %d", b_kvs->nkvs);
+                    continue;
+                }
+                memcpy(b_kvs->slots[b_kvs->nkvs].key, key_, klen);
+                b_kvs->slots[b_kvs->nkvs].key_length = FLAGS_key_size;
+                b_kvs->slots[b_kvs->nkvs].value_length = FLAGS_value_size;
+                b_kvs->nkvs += 1;
+                cur_batch_length += 1;
+                // std::cout << "Read " << b_kvs->nkvs << " keys together" << std::endl;
+                // for (int i = 0; i < b_kvs->nkvs; i++) {
+                //     std::string str((char*)b_kvs->slots[i].key, b_kvs->slots[i].key_length-1);
+                //     std::cout << "[Read] key " << str << std::endl;
+                // }
+
+                kvs_option_retrieve option;
+                option.kvs_retrieve_delete = false;
+
+                kvs_key kvskey = {fake_key_, klen};
+                memcpy(fake_value_, (char*)b_kvs, batch_stt_size);
+                kvs_value kvsvalue = {fake_value_, batch_stt_size, 0, 0};
+
+                ret = kvs_retrieve_kvp(ks_hd, &kvskey, &option, &kvsvalue);
+                
+                // std::cout << "After read " << b_kvs->nkvs << " keys together" << std::endl;
+                memcpy((char*)b_kvs, kvsvalue.value, batch_stt_size);
+                // for (int i = 0; i < b_kvs->nkvs; i++) {
+                //     std::string str1((char*)b_kvs->slots[i].key, b_kvs->slots[i].key_length-1);
+                //     std::string str2((char*)b_kvs->slots[i].value, b_kvs->slots[i].value_length-1);
+                //     std::cout << "[After read] key " << str << "; value " << str2 << std::endl;
+                //     INFO("[Batch] key %s; value %s", str1.c_str(), str2.c_str());
+                // }
 
                 if (ret != KVS_SUCCESS)
                 {
                     not_find++;
                 }
+                // refresh
+                cur_batch_length = 0;
+                b_kvs->nkvs = 0;
             }
             thread->stats.FinishedBatchOp (j);
         }
@@ -785,12 +875,16 @@ public:
             uint64_t j = 0;
             for (; j < batch && key_iterator.Valid (); j++) {
                 size_t key = key_iterator.Next ();
-                sprintf(key_, "%0*d", klen - 1, key);
+                sprintf(key_, "%0*lu", klen - 1, key);
+                sprintf(value_, "%0*lu", klen - 1, key + 1);
                 kvs_option_store option;
                 option.st_type = KVS_STORE_POST;
                 option.assoc = NULL;
                 kvs_key  kvskey = {key_, klen};
                 kvs_value kvsvalue = {value_, vlen, 0, 0};
+                // std::string str1((char*)kvskey.key, kvskey.length-1);
+                // std::string str2((char*)kvsvalue.value, kvsvalue.length-1);
+                // std::cout << "[Insert] key " << str1 << "; value " << str2 << std::endl;
                 kvs_result ret = kvs_store_kvp(ks_hd, &kvskey, &kvsvalue, &option);
                 if(ret != KVS_SUCCESS ) {
                     not_inserted++;
@@ -828,11 +922,9 @@ public:
         size_t start_offset = thread->tid * interval;
         auto key_iterator = key_trace_->iterate_between (start_offset, start_offset + interval);
 
-        int batch_stt_size = sizeof(batch_kvs);
+        int batch_stt_size = sizeof(structured_value);
         INFO("Batch value size %d batch length %u\n", batch_stt_size, batch_length);
-        batch_kvs *b_kvs = (batch_kvs *)malloc(batch_stt_size);
-        b_kvs->key_length = FLAGS_key_size;
-        b_kvs->value_length = FLAGS_value_size;
+        structured_value *b_kvs = (structured_value *)malloc(batch_stt_size);
         b_kvs->nkvs = 0;
         uint32_t cur_batch_length = 0;
 
@@ -841,8 +933,8 @@ public:
         char *key_ = (char *)kvs_malloc(klen, 4096);
         char *value_ = (char*)kvs_malloc(vlen, 4096);
 
-        size_t zero_key = 0;
-        sprintf(fake_key_, "%0*d", klen - 1, zero_key);
+        size_t multi_flag = 0;
+        sprintf(fake_key_, "%0*lu", klen - 1, multi_flag);
 
         thread->stats.Start ();
         size_t not_inserted = 0;
@@ -850,23 +942,26 @@ public:
             uint64_t j = 0;
             for (; j < batch && key_iterator.Valid (); j++) {
                 size_t key = key_iterator.Next ();
-                sprintf(key_, "%0*d", klen - 1, key);
-                if (cur_batch_length < batch_length) {
-                    memcpy(b_kvs->key + cur_batch_length * klen, key_, klen); 
-                    memcpy(b_kvs->value + cur_batch_length * vlen, value_, vlen); 
+                sprintf(key_, "%0*lu", klen - 1, key);
+                if ((cur_batch_length + 1) < batch_length) {
+                    memcpy(b_kvs->slots[b_kvs->nkvs].key, key_, klen);
+                    memcpy(b_kvs->slots[b_kvs->nkvs].value, value_, vlen);
+                    b_kvs->slots[b_kvs->nkvs].key_length = FLAGS_key_size;
+                    b_kvs->slots[b_kvs->nkvs].value_length = FLAGS_value_size;
                     b_kvs->nkvs += 1;
                     cur_batch_length += 1;
                     continue;
                 }
+                memcpy(b_kvs->slots[b_kvs->nkvs].key, key_, klen);
+                memcpy(b_kvs->slots[b_kvs->nkvs].value, value_, vlen);
+                b_kvs->slots[b_kvs->nkvs].key_length = FLAGS_key_size;
+                b_kvs->slots[b_kvs->nkvs].value_length = FLAGS_value_size;
+                b_kvs->nkvs += 1;
+                cur_batch_length += 1;
 
                 kvs_key  kvskey = {fake_key_, klen};
                 memcpy(fake_value_, (char*)b_kvs, batch_stt_size);
                 kvs_value kvsvalue = {fake_value_, batch_stt_size, 0, 0};
-
-                // struct batch_kvs* a = (struct batch_kvs*)fake_value_;
-                // for (int kk = 0; kk < a->nkvs; kk++) {
-                //     printf("deref key %.*s\n", a->key_length, a->key + kk * a->key_length);
-                // }
 
                 kvs_option_store option;
                 option.st_type = KVS_STORE_POST;

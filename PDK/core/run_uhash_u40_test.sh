@@ -2,7 +2,7 @@
 # sudo bash build_nvmevirt.sh
 
 nnsize=(16 32 64 128 256 512)
-nr_ops=(10000000 10000000 10000000 10000000 10000000 10000000)
+nr_ops=(1000000 10000000 10000000 10000000 10000000 10000000)
 for idx in 0;
 do
 
@@ -52,7 +52,8 @@ echo 3 >/proc/sys/vm/drop_caches
 sleep 5
 
 ulimit -Sn 204800
-sudo ./mempool_hash_application --path=/mnt/nvmevirt/mempool_hash --benchmarks=load,readall --worker_threads=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 | tee ${result_path}/${prefix}_${file_name}.data
+sudo ./mempool_hash_application --path=/mnt/nvmevirt/mempool_hash --benchmarks=load,readall --worker_threads=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 
+# | tee ${result_path}/${prefix}_${file_name}.data
 
 
 # kill stats

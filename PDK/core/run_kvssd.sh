@@ -43,7 +43,7 @@ do
     if [ ${type} -eq 1 ]
     then
     echo "sync io"
-    sudo ./sample_sync_application --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load --batch_length=${batch_length} --thread=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
+    sudo ./sample_sync_application --device_path=0001:10:00.0 --keyspace_name=keyspace_test --benchmarks=load,readall --batch_length=${batch_length} --thread=${nthreads} --num=${num} --key_size=${ksize} --value_size=${vsize} --report_interval=1 --batch=100 \
     # | tee ${result_path}/${prefix}_${file_name}.data
     else
     echo "async io"

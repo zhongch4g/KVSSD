@@ -35,16 +35,13 @@ public:
         printf ("generate %lu keys\n", count);
         // util::TraceExponential trace (123, 1, 4 * count);
         auto starttime = std::chrono::system_clock::now ();
-        tbb::parallel_for (tbb::blocked_range<uint64_t> (1, count),
+        tbb::parallel_for (tbb::blocked_range<uint64_t> (2, count),
                            [&] (const tbb::blocked_range<uint64_t>& range) {
                                for (uint64_t i = range.begin (); i != range.end (); i++) {
-                                    //   uint64_t num = u64Rand (1LU, kRandNumMax);
-                                   keys_[i] = i;
+                                      uint64_t num = u64Rand (1LU, kRandNumMax);
+                                //    keys_[i] = i;
                                }
                            });
-        // for (uint64_t i = 0; i < count; i++) {
-        //     keys_[i] = trace.Next ();
-        // }
         auto duration = std::chrono::duration_cast<std::chrono::microseconds> (
             std::chrono::system_clock::now () - starttime);
         printf ("generate duration %f s.\n", duration.count () / 1000000.0);
@@ -57,12 +54,14 @@ public:
     void Randomize (void) {
         printf ("randomize %lu keys\n", keys_.size ());
         auto starttime = std::chrono::system_clock::now ();
-        tbb::parallel_for (tbb::blocked_range<uint64_t> (0, keys_.size ()),
-                           [&] (const tbb::blocked_range<uint64_t>& range) {
-                               auto rng = std::default_random_engine{};
-                               std::shuffle (keys_.begin () + range.begin (),
-                                             keys_.begin () + range.end (), rng);
-                           });
+        // tbb::parallel_for (tbb::blocked_range<uint64_t> (0, keys_.size ()),
+        //                    [&] (const tbb::blocked_range<uint64_t>& range) {
+        //                        auto rng = std::default_random_engine{};
+        //                        std::shuffle (keys_.begin () + range.begin (),
+        //                                      keys_.begin () + range.end (), rng);
+        //                    });
+        auto rng = std::default_random_engine{};
+        std::shuffle (keys_.begin (), keys_.end(), rng);
         auto duration = std::chrono::duration_cast<std::chrono::microseconds> (
             std::chrono::system_clock::now () - starttime);
         printf ("randomize duration %f s.\n", duration.count () / 1000000.0);
